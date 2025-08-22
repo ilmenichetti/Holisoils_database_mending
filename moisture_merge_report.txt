@@ -1,0 +1,37 @@
+In site: Dobroc I could fill 3038 elements of 3840 
+In site: Dumbravita I could fill 3240 elements of 3600 
+In site: DumbravitaTrench I could fill 3119 elements of 3199 
+In site: Gamiz I could fill 2210 elements of 3052 
+No moisture files found for site: Karstula75 
+In site: Karstula75 I could fill 0 elements of 5024 
+ The site Karstula75 does not have any additional moisture data 
+No moisture files found for site: Karstula76 
+In site: Karstula76 I could fill 0 elements of 5252 
+ The site Karstula76 does not have any additional moisture data 
+No moisture files found for site: Kelheim-Parsberg 
+In site: Kelheim-Parsberg I could fill 0 elements of 1556 
+ The site Kelheim-Parsberg does not have any additional moisture data 
+No moisture files found for site: Kranzberg-Freising 
+In site: Kranzberg-Freising I could fill 0 elements of 2036 
+ The site Kranzberg-Freising does not have any additional moisture data 
+No moisture files found for site: Kroondomein 
+In site: Kroondomein I could fill 0 elements of 20 
+ The site Kroondomein does not have any additional moisture data 
+In site: Llobera I could fill 407 elements of 1553 
+No moisture files found for site: NP Hoge Veluwe 
+In site: NP Hoge Veluwe I could fill 0 elements of 40 
+ The site NP Hoge Veluwe does not have any additional moisture data 
+In site: Ränskälänkorpi I could fill 0 elements of 4292 
+No moisture files found for site: Saint Mitre 
+In site: Saint Mitre I could fill 0 elements of 2762 
+ The site Saint Mitre does not have any additional moisture data 
+In site: Secanella I could fill 705 elements of 1788 
+No moisture files found for site: St Christol 
+In site: St Christol I could fill 0 elements of 1476 
+ The site St Christol does not have any additional moisture data 
+No moisture files found for site: Wasserburg-Maitenbeth 
+In site: Wasserburg-Maitenbeth I could fill 0 elements of 1600 
+ The site Wasserburg-Maitenbeth does not have any additional moisture data 
+No moisture files found for site: Zwolse Bos 
+In site: Zwolse Bos I could fill 0 elements of 509 
+ The site Zwolse Bos does not have any additional moisture data 
