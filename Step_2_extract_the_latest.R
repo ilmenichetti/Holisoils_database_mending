@@ -218,6 +218,10 @@ meas_ids <- meas_ids[order(meas_sites)]
 ## this collects the individual measured series and their calculated flux values
 
 #loop running for each measurement id
+# Initialize diff_vecs before the main loop
+diff_vecs <- numeric(length(meas_ids))
+
+# Main loop running for each measurement id
 for(i in 1:length(meas_ids)){
   
   cat("Processing measurement ID", i, "of", length(meas_ids), "- ID:", meas_ids[i], "\n")
@@ -227,7 +231,7 @@ for(i in 1:length(meas_ids)){
   s0 <- get_series(tok, meas_ids[i])
   toc()
   
-  #series summary in tabular form, loop should run for each row
+  # series summary in tabular form, loop should run for each row
   series_table <- data.frame(
     id = sapply(s0, `[[`, "id"),
     measurements = sapply(s0, `[[`, "measurements"),
@@ -253,24 +257,45 @@ for(i in 1:length(meas_ids)){
     stringsAsFactors = FALSE
   )
   
-  # Which sites where measured in the current series?
+  # Which sites were measured in the current series?
   sites_in_series <- unique(series_table$siteid)
   
-  #loop running for each of the sites in the series
+  # Loop running for each of the sites in the series
   for(k in 1:length(sites_in_series)){
     
     site_name <- sites_in_series[k]
     
+    # Define paths immediately after site_name
+    datafile_path <- file.path(main_folder, site_name)
+    datafile_path_file <- file.path(main_folder, site_name, site_name)
+    
     cat("  Processing site:", site_name, "(", k, "of", length(sites_in_series), "sites in this measurement)\n")
     
     # ---------------------------------------------------------------------
-    #read if the datafile already exists
+    # Read if the datafile already exists
+    # Read if the datafile already exists
     if(file.exists(file.path(datafile_path, paste0(site_name, "whole.csv")))) {
       site_datafile <- read.csv(file.path(datafile_path, paste0(site_name, "whole.csv")))
-    } else {
-      cat(paste("Initialised file for ",site_name, "not found, initialising data structure", '\n'))
       
-      #initialize the data structure for the current site
+      # Add missing treatment column if it doesn't exist
+      if(!"treatment" %in% names(site_datafile)) {
+        site_datafile$treatment <- NA_character_
+        cat("    Added missing 'treatment' column\n")
+      }
+      
+      # Add missing filename column if it doesn't exist
+      if(!"filename" %in% names(site_datafile)) {
+        site_datafile$filename <- NA_character_
+        cat("    Added missing 'filename' column\n")
+      }
+      
+      # Convert to tibble
+      site_datafile <- as_tibble(site_datafile)
+      
+    } else {
+      cat(paste("Initialised file for", site_name, "not found, initialising data structure", '\n'))
+      
+      # Initialize the data structure for the current site
       site_datafile <- tibble(
         id=integer(), 
         meas=integer(), 
@@ -278,18 +303,18 @@ for(i in 1:length(meas_ids)){
         siteid=character(), 
         subsiteid=character(), 
         point=character(),
-        treatment=character(),      # ← Add this missing column
+        treatment=character(),
         gas=character(), 
         start_time=character(), 
         end_time=character(),
-        start_temp=double(),    
-        end_temp=double(),      
+        start_temp=double(),
+        end_temp=double(),
         unit=character(),
-        wt=double(),               # ← Change to double() to match usage
+        wt=double(),
         pointtype=character(),
-        soil_temp_5cm=double(),    
-        soil_temp_30cm=double(),   
-        tsmoisture=double(),       
+        soil_temp_5cm=double(),
+        soil_temp_30cm=double(),
+        tsmoisture=double(),
         volume=double(), 
         area=double(), 
         pad_head=integer(), 
@@ -299,45 +324,35 @@ for(i in 1:length(meas_ids)){
         personal_flux=double(), 
         personal_resid=double(), 
         trimmer=character(), 
-        filename=character()      
+        filename=character()
       )
       
-      #add the db_origin column to the empty structure
+      # Add the db_origin column to the empty structure
       cat(paste("combining the initialised data structure with the older sources", '\n'))
-      #path of the datafile to write
-      datafile_path <- file.path(main_folder, site_name) #folder path
-      datafile_path_file <- file.path(main_folder, site_name, site_name) #path to the data file from the merging
       
-      # first step: add the old data in the data structure for current site
-      if(file.exists(paste(datafile_path_file, "db3like.csv", sep=""))) { #if in case there are measurements from previous db
-        old_datafile=read.csv(paste(datafile_path_file, "db3like.csv", sep=""))[,-1]
-        #old_datafile$db_origin=1
-        site_datafile$db_origin=3
-        names(old_datafile)
-        names(site_datafile)
-        
-        combined_datafile<-rbind(old_datafile, site_datafile)
-      } else{ #if there are no previous measurements, just use the initialized empty structure
-        combined_datafile<-site_datafile
+      # First step: add the old data in the data structure for current site
+      if(file.exists(paste(datafile_path_file, "db3like.csv", sep=""))) {
+        old_datafile <- read.csv(paste(datafile_path_file, "db3like.csv", sep=""))[,-1]
+        site_datafile$db_origin <- 3
+        combined_datafile <- rbind(old_datafile, site_datafile)
+      } else {
+        combined_datafile <- site_datafile
       }
     } # end of the IF loop for combining the data files
     # ---------------------------------------------------------------------
     
-    # this is to be sure that all points are stored as charachter
+    # This is to be sure that all points are stored as character
     site_datafile$point <- as.character(site_datafile$point) 
     site_datafile$pointtype <- as.character(site_datafile$pointtype) 
     site_datafile$wt <- as.numeric(site_datafile$wt) 
-
     
-    #get the "subseries", the measurements for the current site within this measurement series
+    # Get the "subseries", the measurements for the current site within this measurement series
     subseries <- s0[sapply(s0, function(x) x$siteid) == site_name]
     subseries_length <- length(subseries)
     
     cat("    Processing", subseries_length, "subseries for site", site_name, "\n")
     
-    #running the loop for the subseries
-    
-    # set the progressbar
+    # Set the progress bar
     pb <- progress_bar$new(
       format = "    Processing subseries [:bar] :percent (:current/:total)",
       total = subseries_length, 
@@ -345,20 +360,28 @@ for(i in 1:length(meas_ids)){
       width = 60
     )
     
+    # Running the loop for the subseries
     for(j in 1:subseries_length){
-      s_obj <- process_single_series(subseries,j)
+      s_obj <- process_single_series(subseries, j)
+      
+      #debugging line, to see if I can assume all fluxes are CO2
+      if(s_obj$gas != "co2"){
+        stop("There's some other fluxes than CO2 in here!")}
+      
       s_id <- s_obj$id
-      f_obj <- get_flux(tok,s_id)
+      f_obj <- get_flux(tok, s_id)
+      
+      # Process flux calculations
       if(length(f_obj) == 1){
         a_flux <- f_obj[[1]]$flux
         a_resid <- f_obj[[1]]$resid
         p_flux <- NA
         p_resid <- NA
         trimmer <- NA
-      }else if(length(f_obj) > 1){
+      } else if(length(f_obj) > 1){
         trimmers <- character(length(f_obj))
-        for(k in 1:length(f_obj)){
-          trimmers[k] <- f_obj[[k]]$trimmer_name
+        for(m in 1:length(f_obj)){
+          trimmers[m] <- f_obj[[m]]$trimmer_name
         }
         auto_id <- which(trimmers == "autotrimmer")
         other_id <- which(trimmers != "autotrimmer")
@@ -366,24 +389,23 @@ for(i in 1:length(meas_ids)){
         a_resid <- f_obj[[auto_id[1]]]$resid
         if(length(other_id) > 0){
           flux_values <- numeric(length(other_id))
-          for(k in 1:length(other_id)){
-            #flux_values[i] <- f_obj[[other_id[k]]]$flux
-            flux_values[k] <- f_obj[[other_id[k]]]$flux #bug fix
+          for(m in 1:length(other_id)){
+            flux_values[m] <- f_obj[[other_id[m]]]$flux  # Fixed indexing
           }
           p_flux <- mean(flux_values)
           if(length(other_id) == 1){
             trimmer <- trimmers[other_id[1]]
             p_resid <- f_obj[[other_id[1]]]$resid
-          }else{
+          } else {
             trimmer <- "multiple"
             p_resid <- NA
           }
-        }else{
+        } else {
           p_flux <- NA
           p_resid <- NA
           trimmer <- NA
         }
-      }else{
+      } else {
         a_flux <- NA
         a_resid <- NA
         p_flux <- NA
@@ -391,7 +413,38 @@ for(i in 1:length(meas_ids)){
         trimmer <- NA
       }
       
+      # Generate sequence of 1-second intervals
+      start_time <- as.POSIXct(paste(s_obj$date, s_obj$start_time), format = "%Y-%m-%d %H:%M:%S")
+      end_time <- as.POSIXct(paste(s_obj$date, s_obj$end_time), format = "%Y-%m-%d %H:%M:%S")
+      time_sequence <- seq(from = start_time, to = end_time, by = "1 sec")
+      time_sequence_formatted <- format(time_sequence, "%H:%M:%S")
+      trimmed_values <- s_obj$values[(s_obj$pad_head + 1):(length(s_obj$values) - s_obj$pad_tail)]
       
+      # Make the generated timesteps and the measurement vectors uniform
+      if (length(trimmed_values) - length(time_sequence_formatted) > 0){
+        cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
+                  length(trimmed_values) - length(time_sequence_formatted), "shorter than time vector", '\n'))
+        diff_vecs[i] = length(trimmed_values) - length(time_sequence_formatted)
+        trimmed_values = trimmed_values[(1 + diff_vecs[i]):length(trimmed_values)]
+      } else if (length(trimmed_values) - length(time_sequence_formatted) < 0) {
+        cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
+                  abs(length(trimmed_values) - length(time_sequence_formatted)), "longer than time vector", '\n'))
+        diff_vecs[i] = length(time_sequence_formatted) - length(trimmed_values)
+        time_sequence_formatted = time_sequence_formatted[(1 + diff_vecs[i]):length(time_sequence_formatted)]
+      }
+      
+      # Create the name of the file to write
+      filename_featherfile = paste(s_obj$date,
+                                   s_obj$subsiteid,
+                                   s_obj$point,
+                                   s_obj$env$`point type`, sep="_")
+      
+      # Clean up filename if it contains problematic characters
+      if (grepl("/", filename_featherfile)) {
+        filename_featherfile <- gsub("/", "-", filename_featherfile)
+      }
+      
+      # Add row to site_datafile
       site_datafile <- site_datafile %>% add_row(
         id = s_obj$id,
         meas = s_obj$measurements,
@@ -399,7 +452,7 @@ for(i in 1:length(meas_ids)){
         siteid = s_obj$siteid,
         subsiteid = s_obj$subsiteid,
         point = as.character(s_obj$point),
-        treatment = as.character(s_obj$env$treatment),  # ← Convert to character
+        treatment = as.character(ifelse(is.null(s_obj$env$treatment), NA, s_obj$env$treatment)),
         gas = s_obj$gas,
         start_time = s_obj$start_time,
         end_time = s_obj$end_time,
@@ -414,96 +467,338 @@ for(i in 1:length(meas_ids)){
         volume = to_numeric_with_na(s_obj$volume),
         area = to_numeric_with_na(s_obj$area),
         pad_head = as.integer(to_numeric_with_na(s_obj$pad_head)),
-        pad_tail = as.integer(to_numeric_with_na(s_obj$pad_tail)),  
+        pad_tail = as.integer(to_numeric_with_na(s_obj$pad_tail)),
         autotrim_flux = a_flux,
         autotrim_resid = a_resid,
         personal_flux = p_flux,
         personal_resid = p_resid,
-        trimmer = as.character(trimmer),
-        filename = filename_featherfile  
+        trimmer = as.character(ifelse(is.null(trimmer) || is.na(trimmer), NA, trimmer)),
+        filename = filename_featherfile
       )
       
-      
-      # ---------------------------------------------------------------------
-      # Writing the feather files, one for each jth step
-      # ---------------------------------------------------------------------
-      
-      
-      # Generate sequence of 1-second intervals
-      start_time <- as.POSIXct(paste(s_obj$date, s_obj$start_time), format = "%Y-%m-%d %H:%M:%S")
-      end_time <- as.POSIXct(paste(s_obj$date, s_obj$end_time), format = "%Y-%m-%d %H:%M:%S")
-      time_sequence <- seq(from = start_time, to = end_time, by = "1 sec")
-      time_sequence_formatted <- format(time_sequence, "%H:%M:%S")
-      trimmed_values <- s_obj$values[(s_obj$pad_head + 1):(length(s_obj$values) - s_obj$pad_tail)]
-      
-      # make the generated timesteps and the measurement vectors uniform
-      # !!!!! this is kinda wrong, wbut problem was not fixed at the DB level
-      # theres a problem with discrepancy of time series, usually few seconds, "solving" discarding initial values with an if, but this is a workaround!
-      
-      if (length(trimmed_values)-length(time_sequence_formatted) >0){ # in case there's less measurements than the time vec
-        cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
-                  length(trimmed_values)-length(time_sequence_formatted), "shorter than time vector", '\n'))
-        diff_vecs[i] = length(trimmed_values)-length(time_sequence_formatted)
-        trimmed_values = trimmed_values[(1+diff_vecs[i]):length(trimmed_values)]
-      } else if (length(trimmed_values)-length(time_sequence_formatted) <0) { # in case there's more measurements than the time vec
-        cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
-                  abs(length(trimmed_values)-length(time_sequence_formatted)), "longer than time vector", '\n'))
-        diff_vecs[i] = length(time_sequence_formatted)-length(trimmed_values)
-        time_sequence_formatted = time_sequence_formatted[(1+diff_vecs[i]):length(time_sequence_formatted)]
-      }
-      
-      #create the name of the file to write
-      filename_featherfile = paste(s_obj$date,
-                             s_obj$subsiteid,
-                             s_obj$point,
-                             s_obj$env$`point type`, sep="_")
-      
-      #there's some character creating mess, without this the name is read as a subfolder
-      if (grepl("/", filename_featherfile)) {
-        filename_featherfile <- gsub("/", "-", filename_featherfile)
-      }
-      
-      # create the feather file to write. There are empty series, we have to take care of them with an IF statement
-      if(length(trimmed_values)==0){  featherfile = data.frame(series=NA,
-                                                                       time = NA,
-                                                                       co2_ppm= NA)
-      cat(paste("The measurement series is empty, filled as NA", '\n'))
-      
+      # Create the feather file to write
+      if(length(trimmed_values) == 0){
+        featherfile = data.frame(series = NA,
+                                 time = NA,
+                                 co2_ppm = NA)
+        cat(paste("The measurement series is empty, filled as NA", '\n'))
       } else {
-        featherfile = data.frame(series=rep(s_obj$id, length(trimmed_values)),
-                                         time = time_sequence_formatted,
-                                         co2_ppm = trimmed_values,
-                                         db_origin = 3)
+        featherfile = data.frame(series = rep(s_obj$id, length(trimmed_values)),
+                                 time = time_sequence_formatted,
+                                 co2_ppm = trimmed_values,
+                                 db_origin = 3)
       }
       
       # Create the full feather file path
-      feather_folder_path <- file.path(datafile_path, paste("meas_ID",meas_ids[i], "db3", sep="_"))
-
+      feather_folder_path <- file.path(datafile_path, paste("meas_ID", meas_ids[i], "db3", sep="_"))
+      
       # Ensure the directory exists
       if (!dir.exists(feather_folder_path)) {
         dir.create(feather_folder_path, recursive = TRUE)
       }
-      write_feather(featherfile, paste(feather_folder_path,"/", filename_featherfile, ".feather", sep=""))
+      write_feather(featherfile, paste(feather_folder_path, "/", filename_featherfile, ".feather", sep=""))
       
-      #cat(paste("feather file of the measurements written",j),'\n')
-      pb$tick() # substituted the feather file print statement with progress bar, less verbose. Still useful for debugging.
-      
-      # ---------------------------------------------------------------------
+      pb$tick()
       
     } # closing j loop (running for each measurement row of one site inside the measurement)
     
     # Writing the site datafile
-    #in case the folder does not exist, create it
+    # In case the folder does not exist, create it
     if (!dir.exists(datafile_path)) {
-      dir.create(datafile_path, recursive = TRUE)  # Create the folder and subfolder if it doesn't exist
+      dir.create(datafile_path, recursive = TRUE)
     }
-    write.csv(site_datafile,file.path(datafile_path, paste0(site_name, "whole.csv")), row.names = FALSE)
+    write.csv(site_datafile, file.path(datafile_path, paste0(site_name, "whole.csv")), row.names = FALSE)
     
-  } #closing k loop (for sites of the measurement)
+  } # closing k loop (for sites of the measurement)
   
-}#closing i loop (iterating over measurements)
-    
-  
+} # closing i loop (iterating over measurements)
+
+# for(i in 1:length(meas_ids)){
+#   
+#   cat("Processing measurement ID", i, "of", length(meas_ids), "- ID:", meas_ids[i], "\n")
+#   cat("Downloading...", "\n")
+#   
+#   tic() # bit of benchmarking...
+#   s0 <- get_series(tok, meas_ids[i])
+#   toc()
+#   
+#   #series summary in tabular form, loop should run for each row
+#   series_table <- data.frame(
+#     id = sapply(s0, `[[`, "id"),
+#     measurements = sapply(s0, `[[`, "measurements"),
+#     date = sapply(s0, `[[`, "date"),
+#     siteid = sapply(s0, `[[`, "siteid"),
+#     subsiteid = sapply(s0, `[[`, "subsiteid"),
+#     point = sapply(s0, `[[`, "point"),
+#     gas = sapply(s0, `[[`, "gas"),
+#     start_time = sapply(s0, `[[`, "start_time"),
+#     end_time = sapply(s0, `[[`, "end_time"),
+#     start_temp = sapply(s0, `[[`, "start_temp"),
+#     end_temp = sapply(s0, `[[`, "end_temp"),
+#     unit = sapply(s0, `[[`, "unit"),
+#     volume = sapply(s0, `[[`, "volume"),
+#     area = sapply(s0, `[[`, "area"),
+#     pad_head = sapply(s0, `[[`, "pad_head"),
+#     pad_tail = sapply(s0, `[[`, "pad_tail"),
+#     env_wt = sapply(s0, function(x) x$env$wt),
+#     env_point_type = sapply(s0, function(x) x$env$`point type`),
+#     env_soil_temp_5cm = sapply(s0, function(x) x$env$soil_temp_5cm),
+#     env_soil_temp_30cm = sapply(s0, function(x) x$env$soil_temp_30cm),
+#     n_values = sapply(s0, function(x) length(x$values)),
+#     stringsAsFactors = FALSE
+#   )
+#   
+#   # Which sites where measured in the current series?
+#   sites_in_series <- unique(series_table$siteid)
+#   
+#   #loop running for each of the sites in the series
+#   for(k in 1:length(sites_in_series)){
+#     
+#     site_name <- sites_in_series[k]
+#     
+#     cat("  Processing site:", site_name, "(", k, "of", length(sites_in_series), "sites in this measurement)\n")
+#     
+#     # ---------------------------------------------------------------------
+#     #read if the datafile already exists
+#     if(file.exists(file.path(datafile_path, paste0(site_name, "whole.csv")))) {
+#       site_datafile <- read.csv(file.path(datafile_path, paste0(site_name, "whole.csv")))
+#     } else {
+#       cat(paste("Initialised file for ",site_name, "not found, initialising data structure", '\n'))
+#       
+#       #initialize the data structure for the current site
+#       site_datafile <- tibble(
+#         id=integer(), 
+#         meas=integer(), 
+#         date=character(),
+#         siteid=character(), 
+#         subsiteid=character(), 
+#         point=character(),
+#         treatment=character(),      # ← Add this missing column
+#         gas=character(), 
+#         start_time=character(), 
+#         end_time=character(),
+#         start_temp=double(),    
+#         end_temp=double(),      
+#         unit=character(),
+#         wt=double(),               # ← Change to double() to match usage
+#         pointtype=character(),
+#         soil_temp_5cm=double(),    
+#         soil_temp_30cm=double(),   
+#         tsmoisture=double(),       
+#         volume=double(), 
+#         area=double(), 
+#         pad_head=integer(), 
+#         pad_tail=integer(),
+#         autotrim_flux=double(), 
+#         autotrim_resid=double(),
+#         personal_flux=double(), 
+#         personal_resid=double(), 
+#         trimmer=character(), 
+#         filename=character()      
+#       )
+#       
+#       #add the db_origin column to the empty structure
+#       cat(paste("combining the initialised data structure with the older sources", '\n'))
+#       #path of the datafile to write
+#       datafile_path <- file.path(main_folder, site_name) #folder path
+#       datafile_path_file <- file.path(main_folder, site_name, site_name) #path to the data file from the merging
+#       
+#       # first step: add the old data in the data structure for current site
+#       if(file.exists(paste(datafile_path_file, "db3like.csv", sep=""))) { #if in case there are measurements from previous db
+#         old_datafile=read.csv(paste(datafile_path_file, "db3like.csv", sep=""))[,-1]
+#         #old_datafile$db_origin=1
+#         site_datafile$db_origin=3
+#         names(old_datafile)
+#         names(site_datafile)
+#         
+#         combined_datafile<-rbind(old_datafile, site_datafile)
+#       } else{ #if there are no previous measurements, just use the initialized empty structure
+#         combined_datafile<-site_datafile
+#       }
+#     } # end of the IF loop for combining the data files
+#     # ---------------------------------------------------------------------
+#     
+#     # this is to be sure that all points are stored as charachter
+#     site_datafile$point <- as.character(site_datafile$point) 
+#     site_datafile$pointtype <- as.character(site_datafile$pointtype) 
+#     site_datafile$wt <- as.numeric(site_datafile$wt) 
+# 
+#     
+#     #get the "subseries", the measurements for the current site within this measurement series
+#     subseries <- s0[sapply(s0, function(x) x$siteid) == site_name]
+#     subseries_length <- length(subseries)
+#     
+#     cat("    Processing", subseries_length, "subseries for site", site_name, "\n")
+#     
+#     #running the loop for the subseries
+#     
+#     # set the progressbar
+#     pb <- progress_bar$new(
+#       format = "    Processing subseries [:bar] :percent (:current/:total)",
+#       total = subseries_length, 
+#       clear = FALSE, 
+#       width = 60
+#     )
+#     
+#     for(j in 1:subseries_length){
+#       s_obj <- process_single_series(subseries,j)
+#       s_id <- s_obj$id
+#       f_obj <- get_flux(tok,s_id)
+#       if(length(f_obj) == 1){
+#         a_flux <- f_obj[[1]]$flux
+#         a_resid <- f_obj[[1]]$resid
+#         p_flux <- NA
+#         p_resid <- NA
+#         trimmer <- NA
+#       }else if(length(f_obj) > 1){
+#         trimmers <- character(length(f_obj))
+#         for(k in 1:length(f_obj)){
+#           trimmers[k] <- f_obj[[k]]$trimmer_name
+#         }
+#         auto_id <- which(trimmers == "autotrimmer")
+#         other_id <- which(trimmers != "autotrimmer")
+#         a_flux <- f_obj[[auto_id[1]]]$flux
+#         a_resid <- f_obj[[auto_id[1]]]$resid
+#         if(length(other_id) > 0){
+#           flux_values <- numeric(length(other_id))
+#           for(k in 1:length(other_id)){
+#             #flux_values[i] <- f_obj[[other_id[k]]]$flux
+#             flux_values[k] <- f_obj[[other_id[k]]]$flux #bug fix
+#           }
+#           p_flux <- mean(flux_values)
+#           if(length(other_id) == 1){
+#             trimmer <- trimmers[other_id[1]]
+#             p_resid <- f_obj[[other_id[1]]]$resid
+#           }else{
+#             trimmer <- "multiple"
+#             p_resid <- NA
+#           }
+#         }else{
+#           p_flux <- NA
+#           p_resid <- NA
+#           trimmer <- NA
+#         }
+#       }else{
+#         a_flux <- NA
+#         a_resid <- NA
+#         p_flux <- NA
+#         p_resid <- NA
+#         trimmer <- NA
+#       }
+#       
+#       
+#       site_datafile <- site_datafile %>% add_row(
+#         id = s_obj$id,
+#         meas = s_obj$measurements,
+#         date = s_obj$date,
+#         siteid = s_obj$siteid,
+#         subsiteid = s_obj$subsiteid,
+#         point = as.character(s_obj$point),
+#         treatment = as.character(s_obj$env$treatment),  # ← Convert to character
+#         gas = s_obj$gas,
+#         start_time = s_obj$start_time,
+#         end_time = s_obj$end_time,
+#         start_temp = to_numeric_with_na(s_obj$start_temp),
+#         end_temp = to_numeric_with_na(s_obj$end_temp),
+#         unit = s_obj$unit,
+#         wt = to_numeric_with_na(s_obj$env$wt),
+#         pointtype = as.character(s_obj$env$`point type`),
+#         soil_temp_5cm = to_numeric_with_na(s_obj$env$soil_temp_5cm),
+#         soil_temp_30cm = to_numeric_with_na(s_obj$env$soil_temp_30cm),
+#         tsmoisture = to_numeric_with_na(s_obj$env$tsmoisture),
+#         volume = to_numeric_with_na(s_obj$volume),
+#         area = to_numeric_with_na(s_obj$area),
+#         pad_head = as.integer(to_numeric_with_na(s_obj$pad_head)),
+#         pad_tail = as.integer(to_numeric_with_na(s_obj$pad_tail)),  
+#         autotrim_flux = a_flux,
+#         autotrim_resid = a_resid,
+#         personal_flux = p_flux,
+#         personal_resid = p_resid,
+#         trimmer = as.character(trimmer),
+#         filename = filename_featherfile  
+#       )
+#       
+#       
+#       # ---------------------------------------------------------------------
+#       # Writing the feather files, one for each jth step
+#       # ---------------------------------------------------------------------
+#       
+#       
+#       # Generate sequence of 1-second intervals
+#       start_time <- as.POSIXct(paste(s_obj$date, s_obj$start_time), format = "%Y-%m-%d %H:%M:%S")
+#       end_time <- as.POSIXct(paste(s_obj$date, s_obj$end_time), format = "%Y-%m-%d %H:%M:%S")
+#       time_sequence <- seq(from = start_time, to = end_time, by = "1 sec")
+#       time_sequence_formatted <- format(time_sequence, "%H:%M:%S")
+#       trimmed_values <- s_obj$values[(s_obj$pad_head + 1):(length(s_obj$values) - s_obj$pad_tail)]
+#       
+#       # make the generated timesteps and the measurement vectors uniform
+#       # !!!!! this is kinda wrong, wbut problem was not fixed at the DB level
+#       # theres a problem with discrepancy of time series, usually few seconds, "solving" discarding initial values with an if, but this is a workaround!
+#       
+#       if (length(trimmed_values)-length(time_sequence_formatted) >0){ # in case there's less measurements than the time vec
+#         cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
+#                   length(trimmed_values)-length(time_sequence_formatted), "shorter than time vector", '\n'))
+#         diff_vecs[i] = length(trimmed_values)-length(time_sequence_formatted)
+#         trimmed_values = trimmed_values[(1+diff_vecs[i]):length(trimmed_values)]
+#       } else if (length(trimmed_values)-length(time_sequence_formatted) <0) { # in case there's more measurements than the time vec
+#         cat(paste("Site", site_name, "series", s_obj$id, "subseries", j, ": measurements", 
+#                   abs(length(trimmed_values)-length(time_sequence_formatted)), "longer than time vector", '\n'))
+#         diff_vecs[i] = length(time_sequence_formatted)-length(trimmed_values)
+#         time_sequence_formatted = time_sequence_formatted[(1+diff_vecs[i]):length(time_sequence_formatted)]
+#       }
+#       
+#       #create the name of the file to write
+#       filename_featherfile = paste(s_obj$date,
+#                              s_obj$subsiteid,
+#                              s_obj$point,
+#                              s_obj$env$`point type`, sep="_")
+#       
+#       #there's some character creating mess, without this the name is read as a subfolder
+#       if (grepl("/", filename_featherfile)) {
+#         filename_featherfile <- gsub("/", "-", filename_featherfile)
+#       }
+#       
+#       # create the feather file to write. There are empty series, we have to take care of them with an IF statement
+#       if(length(trimmed_values)==0){  featherfile = data.frame(series=NA,
+#                                                                        time = NA,
+#                                                                        co2_ppm= NA)
+#       cat(paste("The measurement series is empty, filled as NA", '\n'))
+#       
+#       } else {
+#         featherfile = data.frame(series=rep(s_obj$id, length(trimmed_values)),
+#                                          time = time_sequence_formatted,
+#                                          co2_ppm = trimmed_values,
+#                                          db_origin = 3)
+#       }
+#       
+#       # Create the full feather file path
+#       feather_folder_path <- file.path(datafile_path, paste("meas_ID",meas_ids[i], "db3", sep="_"))
+# 
+#       # Ensure the directory exists
+#       if (!dir.exists(feather_folder_path)) {
+#         dir.create(feather_folder_path, recursive = TRUE)
+#       }
+#       write_feather(featherfile, paste(feather_folder_path,"/", filename_featherfile, ".feather", sep=""))
+#       
+#       #cat(paste("feather file of the measurements written",j),'\n')
+#       pb$tick() # substituted the feather file print statement with progress bar, less verbose. Still useful for debugging.
+#       
+#       # ---------------------------------------------------------------------
+#       
+#     } # closing j loop (running for each measurement row of one site inside the measurement)
+#     
+#     # Writing the site datafile
+#     #in case the folder does not exist, create it
+#     if (!dir.exists(datafile_path)) {
+#       dir.create(datafile_path, recursive = TRUE)  # Create the folder and subfolder if it doesn't exist
+#     }
+#     write.csv(site_datafile,file.path(datafile_path, paste0(site_name, "whole.csv")), row.names = FALSE)
+#     
+#   } #closing k loop (for sites of the measurement)
+#   
+# }#closing i loop (iterating over measurements)
+#     
+#   
   
   
   
