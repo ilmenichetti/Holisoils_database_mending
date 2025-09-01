@@ -2,4 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_store
 Holisoils_GHG_data/
+Data_to_patch/

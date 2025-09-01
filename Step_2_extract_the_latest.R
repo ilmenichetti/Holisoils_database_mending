@@ -278,17 +278,18 @@ for(i in 1:length(meas_ids)){
         siteid=character(), 
         subsiteid=character(), 
         point=character(),
+        treatment=character(),      # ← Add this missing column
         gas=character(), 
         start_time=character(), 
         end_time=character(),
-        start_temp=double(),    # ✓ Already correct
-        end_temp=double(),      # ✓ Already correct
+        start_temp=double(),    
+        end_temp=double(),      
         unit=character(),
-        wt=character(), 
+        wt=double(),               # ← Change to double() to match usage
         pointtype=character(),
-        soil_temp_5cm=double(),    # ← Change from character() to double()
-        soil_temp_30cm=double(),   # ← Change from character() to double()
-        tsmoisture=double(),       # ← Change from character() to double()
+        soil_temp_5cm=double(),    
+        soil_temp_30cm=double(),   
+        tsmoisture=double(),       
         volume=double(), 
         area=double(), 
         pad_head=integer(), 
@@ -298,7 +299,7 @@ for(i in 1:length(meas_ids)){
         personal_flux=double(), 
         personal_resid=double(), 
         trimmer=character(), 
-        filename=character()
+        filename=character()      
       )
       
       #add the db_origin column to the empty structure
@@ -366,7 +367,8 @@ for(i in 1:length(meas_ids)){
         if(length(other_id) > 0){
           flux_values <- numeric(length(other_id))
           for(k in 1:length(other_id)){
-            flux_values[i] <- f_obj[[other_id[k]]]$flux
+            #flux_values[i] <- f_obj[[other_id[k]]]$flux
+            flux_values[k] <- f_obj[[other_id[k]]]$flux #bug fix
           }
           p_flux <- mean(flux_values)
           if(length(other_id) == 1){
@@ -397,7 +399,7 @@ for(i in 1:length(meas_ids)){
         siteid = s_obj$siteid,
         subsiteid = s_obj$subsiteid,
         point = as.character(s_obj$point),
-        treatment = s_obj$env$treatment,
+        treatment = as.character(s_obj$env$treatment),  # ← Convert to character
         gas = s_obj$gas,
         start_time = s_obj$start_time,
         end_time = s_obj$end_time,
@@ -405,19 +407,20 @@ for(i in 1:length(meas_ids)){
         end_temp = to_numeric_with_na(s_obj$end_temp),
         unit = s_obj$unit,
         wt = to_numeric_with_na(s_obj$env$wt),
-        pointtype = s_obj$env$`point type`,
+        pointtype = as.character(s_obj$env$`point type`),
         soil_temp_5cm = to_numeric_with_na(s_obj$env$soil_temp_5cm),
         soil_temp_30cm = to_numeric_with_na(s_obj$env$soil_temp_30cm),
         tsmoisture = to_numeric_with_na(s_obj$env$tsmoisture),
         volume = to_numeric_with_na(s_obj$volume),
         area = to_numeric_with_na(s_obj$area),
-        pad_head = to_numeric_with_na(s_obj$pad_head),
-        pad_tail = to_numeric_with_na(s_obj$pad_tail),  
+        pad_head = as.integer(to_numeric_with_na(s_obj$pad_head)),
+        pad_tail = as.integer(to_numeric_with_na(s_obj$pad_tail)),  
         autotrim_flux = a_flux,
         autotrim_resid = a_resid,
         personal_flux = p_flux,
         personal_resid = p_resid,
-        trimmer = trimmer
+        trimmer = as.character(trimmer),
+        filename = filename_featherfile  
       )
       
       
@@ -469,7 +472,8 @@ for(i in 1:length(meas_ids)){
       } else {
         featherfile = data.frame(series=rep(s_obj$id, length(trimmed_values)),
                                          time = time_sequence_formatted,
-                                         co2_ppm= trimmed_values)
+                                         co2_ppm = trimmed_values,
+                                         db_origin = 3)
       }
       
       # Create the full feather file path
