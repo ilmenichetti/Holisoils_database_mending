@@ -363,11 +363,7 @@ for(i in 1:length(meas_ids)){
     # Running the loop for the subseries
     for(j in 1:subseries_length){
       s_obj <- process_single_series(subseries, j)
-      
-      #debugging line, to see if I can assume all fluxes are CO2
-      if(s_obj$gas != "co2"){
-        stop("There's some other fluxes than CO2 in here!")}
-      
+
       s_id <- s_obj$id
       f_obj <- get_flux(tok, s_id)
       

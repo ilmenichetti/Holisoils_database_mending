@@ -135,6 +135,7 @@ for (folder in site_ids) {
     
     # Write data file if measurements exist
     file_to_write <- db_data[db_data$series == series_id, ]
+   
     if (nrow(file_to_write) > 0) {
       write_feather(file_to_write, file.path(subfolder_path, paste0(filename, ".feather")))
     } else {
