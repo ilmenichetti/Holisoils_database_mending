@@ -50,6 +50,11 @@ db_meas <- rbind(db1_meas[,common_cols_meas], db2_meas[,common_cols_meas])
 db_data <- rbind(db1_data, db2_data)
 db_flux <- rbind(db1_flux, db2_flux)
 
+str(db_series)
+str(db_meas)
+str(db_data)
+str(db_flux)
+
 # Clean up series data
 db_series$unique_id <- seq_len(nrow(db_series))
 columns_to_drop <- c("t15", "t20", "t30", "t40")

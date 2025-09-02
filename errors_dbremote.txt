@@ -1,0 +1,5 @@
+=== GHG Data Processing Error Log === 
+Started: 2025-09-02 16:30:27 
+
+2025-09-02 16:30:35 [ MeasID: 77, Site: Dobroc ] Initialised file not found, initialising data structure 
+2025-09-02 16:30:35 [ MeasID: 77, Site: Dobroc ] Combining the initialised data structure with older sources 
