@@ -1,5 +1,11 @@
 TODO list
 
-# check feather files from the three databases if they compaare as structure
+# Kartsulta 75 and 76 are still excluded from the 1st step  DONE NOW
+
+# Feather file structure between 1-2 and 3 is still slightly different, minor fix needed<
+
+# assign the data quality codes based on the exception handling logic
+
+# check; in Step 2 the last part, about renaming the folders, might be useless... SEEMS USELESS NOW; COMMENTED OUT
 
 # write the logic for Germany, taking all the measurements in the .csv file
