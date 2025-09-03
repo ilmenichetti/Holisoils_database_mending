@@ -544,20 +544,26 @@ for(i in 1:length(meas_ids)){
       trimmed_values <- numeric(0)
     })
     
-    # Make the generated timesteps and the measurement vectors uniform
-    if (length(trimmed_values) - length(time_sequence_formatted) > 0){
-      log_error(paste("Measurements", length(trimmed_values) - length(time_sequence_formatted), "shorter than time vector"),
-                measurement_id = meas_ids[i], series_id = s_id,
-                site_id = current_site, subsiteid = s_obj$subsiteid,
-                point = s_obj$point, gas = s_obj$gas)
-      diff_vecs[i] = length(trimmed_values) - length(time_sequence_formatted)
+    # Criterium is 5 steps now
+    length_diff = length(trimmed_values) - length(time_sequence_formatted)
+    
+    if (length_diff > 0){
+      if (length_diff > 5) {
+        log_error(paste("Measurements", length_diff, "shorter than time vector"),
+                  measurement_id = meas_ids[i], series_id = s_id,
+                  site_id = current_site, subsiteid = s_obj$subsiteid,
+                  point = s_obj$point, gas = s_obj$gas)
+      }
+      diff_vecs[i] = length_diff
       trimmed_values = trimmed_values[(1 + diff_vecs[i]):length(trimmed_values)]
-    } else if (length(trimmed_values) - length(time_sequence_formatted) < 0) {
-      log_error(paste("Measurements", abs(length(trimmed_values) - length(time_sequence_formatted)), "longer than time vector"),
-                measurement_id = meas_ids[i], series_id = s_id,
-                site_id = current_site, subsiteid = s_obj$subsiteid,
-                point = s_obj$point, gas = s_obj$gas)
-      diff_vecs[i] = length(time_sequence_formatted) - length(trimmed_values)
+    } else if (length_diff < 0) {
+      if (abs(length_diff) > 5) {
+        log_error(paste("Measurements", abs(length_diff), "longer than time vector"),
+                  measurement_id = meas_ids[i], series_id = s_id,
+                  site_id = current_site, subsiteid = s_obj$subsiteid,
+                  point = s_obj$point, gas = s_obj$gas)
+      }
+      diff_vecs[i] = abs(length_diff)
       time_sequence_formatted = time_sequence_formatted[(1 + diff_vecs[i]):length(time_sequence_formatted)]
     }
     
@@ -571,13 +577,17 @@ for(i in 1:length(meas_ids)){
                                    s_obj$end_time, sep="_")
       
       # Clean up filename if it contains problematic characters
+      # suppressing error message because it is too verbose
+      # if (grepl("/", filename_featherfile)) {
+      #   filename_featherfile <- gsub("/", "-", filename_featherfile)
+      #   log_error("Cleaned up filename containing forward slashes",
+      #             measurement_id = meas_ids[i], series_id = s_id,
+      #             site_id = current_site, subsiteid = s_obj$subsiteid,
+      #             point = s_obj$point, gas = s_obj$gas,
+      #             additional_info = paste("New filename:", filename_featherfile))
+      # }
       if (grepl("/", filename_featherfile)) {
         filename_featherfile <- gsub("/", "-", filename_featherfile)
-        log_error("Cleaned up filename containing forward slashes",
-                  measurement_id = meas_ids[i], series_id = s_id,
-                  site_id = current_site, subsiteid = s_obj$subsiteid,
-                  point = s_obj$point, gas = s_obj$gas,
-                  additional_info = paste("New filename:", filename_featherfile))
       }
       # Clean up colons in time format for filename compatibility
       filename_featherfile <- gsub(":", "-", filename_featherfile)
